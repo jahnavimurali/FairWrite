@@ -19,7 +19,12 @@ const TextEditor = () => {
   const [content, setContent] = useState("");
 
   const [highlightedContent, setHighlightedContent] = useState("");
+
+  // const [showModal, setShowModal] = useState(false)
   const [modalData, setModalData] = useState(null);
+
+  const [sentences, setSentences] = useState([])
+  const [sentencesWithHighlightSpans, setSentencesWithHighlightSpans] = useState([])
 
   const handleContentChange = (value) => {
     setContent(value);
@@ -27,35 +32,42 @@ const TextEditor = () => {
   };
 
   const processAndValidateArticle = () => {
+    console.log(content)
     const sentencesList = content.split(/(?<=\.)/).filter(sentence => sentence.trim().length > 0);
-    console.log(sentencesList)
+    setSentences(sentencesList)
+    // console.log(sentencesList)
     const biasedSentences = sentencesList.map(() => Math.random() > 0.7 ? 1 : 0);
-    console.log(biasedSentences)
+    // console.log(biasedSentences)
 
-    const highlighted = sentencesList.map((sentence, index) => {
+    let highlighted = sentencesList.map((sentence, index) => {
       if (biasedSentences[index] === 1) {
         return `<span class='highlighted' data-index='${index}' style='background-color: lightpink;'>${sentence}</span>`;
       }
       return sentence;
-    }).join(' ');
+    })
+    // console.log(highlighted)
+    highlighted = highlighted.join(' ');
+    // console.log(highlighted)
 
     setHighlightedContent(highlighted);
   };
 
   const handleRightClick = (event) => {
     event.preventDefault();
-    console.log("Okay smth")
+    // console.log("Okay smth")
     const target = event.target;
-    console.log("Okay good")
-    console.log(target)
-    if (target.classList.contains('highlighted')) {
-      console.log("Yes I'm here")
-      const sentenceIndex = parseInt(target.getAttribute('data-index'), 10);
-      const sentencesList = content.split(/(?<=\.)/);
-      const sentence = sentencesList[sentenceIndex];
-      setModalData({ sentence, index: sentenceIndex });
+    // console.log("Okay good")
+    // console.log(target.innerHTML)
+    if (target.style['0']=='background-color') {
+    //   console.log("Yes I'm here")
+    //   const sentenceIndex = parseInt(target.getAttribute('data-index'), 10);
+    //   const sentencesList = content.split(/(?<=\.)/);
+    //   const sentence = sentencesList[sentenceIndex];
+      const sentence = target.innerHTML
+    // for now set both biased_sentence and debiased_sentence to be the original sentence
+      setModalData({biased_sentence: sentence, debiased_sentence: sentence});
     }
-    console.log("UHM")
+    // console.log("UHM")
   };
 
   const acceptSuggestion = () => {
@@ -65,9 +77,28 @@ const TextEditor = () => {
     setContent(sentencesList.join(''));
     setModalData(null);
     processAndValidateArticle();
+
+    // let sentencesList = sentences
+    // console.log("1", sentencesList)
+    // const index = sentencesList.indexOf(modalData.biased_sentencesentence);
+
+    // sentencesList[index] = modalData.debiased_sentence; // Replace with the debiased version (same as original for now)
+    
+    // setSentences(sentencesList) 
+    // setContent(sentencesList.join(''));
+
+    // let sen_high = sentencesWithHighlightSpans
+    // sen_high[index] = modalData.debiased_sentence;
+    // setHighlightedContent(sen_high.join(''))
+    // setModalData(null);
+    // processAndValidateArticle();
   };
 
   const rejectSuggestion = () => {
+    // const index = sentences.indexOf(modalData.biased_sentence);
+    // let sen_high = sentencesWithHighlightSpans
+    // sen_high[index] = modalData.biased_sentence;
+    // setHighlightedContent(sen_high.join(''))
     setModalData(null);
   };
 
@@ -116,8 +147,8 @@ const TextEditor = () => {
       {modalData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-md shadow-md w-1/3">
-            <h2 className="text-lg font-bold mb-4">Debiased Version</h2>
-            <p className="mb-4">{modalData.sentence}</p>
+            <h2 className="text-lg text-black font-bold mb-4">Debiased Version</h2>
+            <p className="mb-4 text-black">{modalData.debiased_sentence}</p>
             <div className="flex justify-end space-x-4">
               <button onClick={acceptSuggestion} className="px-4 py-2 bg-green-500 text-white rounded">Accept</button>
               <button onClick={rejectSuggestion} className="px-4 py-2 bg-red-500 text-white rounded">Reject</button>
