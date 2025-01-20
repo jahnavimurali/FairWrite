@@ -31,8 +31,17 @@ const TextEditor = () => {
     setHighlightedContent(value);
   };
 
+  // onChange expects a function with these 4 arguments - get JSON
+  function handleChange(content, delta, source, editor) {
+    // console.log(content);
+    setContent(content);
+    setHighlightedContent(editor.getContents());
+
+ }
+
   const processAndValidateArticle = () => {
-    console.log(content)
+    // console.log(content)
+    // console.log(content.ops[0]['insert'])
     const sentencesList = content.split(/(?<=\.)/).filter(sentence => sentence.trim().length > 0);
     setSentences(sentencesList)
     // console.log(sentencesList)
@@ -134,7 +143,7 @@ const TextEditor = () => {
       <ReactQuill
         theme="snow"
         value={highlightedContent}
-        onChange={handleContentChange}
+        onChange={handleChange}
         modules={modules}
         className="mt-4 h-full text-black text-1xl"
       />
