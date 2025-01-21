@@ -63,10 +63,10 @@ const TextEditor = () => {
 
   const handleRightClick = (event) => {
     event.preventDefault();
-    // console.log("Okay smth")
+    //console.log("Okay smth")
     const target = event.target;
-    // console.log("Okay good")
-    // console.log(target.innerHTML)
+    //console.log("Okay good")
+    //console.log(target)
     if (target.style['0']=='background-color') {
     //   console.log("Yes I'm here")
     //   const sentenceIndex = parseInt(target.getAttribute('data-index'), 10);
@@ -117,18 +117,18 @@ const TextEditor = () => {
 
 
   return (
-    <div className="w-screen flex flex-col pt-20 p-8 bg-white min-h-screen overflow-x-hidden" onContextMenu={handleRightClick}>
+    <div className="w-full flex flex-col pt-20 p-8 bg-white min-h-screen overflow-x-hidden" onContextMenu={handleRightClick}>
       <div className="mb-4">
-        <input
+        <textarea
           type="text"
           placeholder="Title of the Article"
-          className="text-3xl w-full font-bold border-none focus:outline-none mb-2 h-auto bg-white text-black"
-          style={{ wordWrap: "break-word", whiteSpace: "pre-wrap" }}
-          value={title}
+          // add resize-none to disable dynamic resizing by user
+          className="text-3xl h-auto w-full font-bold border-none focus:outline-none mb-2 bg-white text-black word-wrap-break-word white-space-pre-wrap overflow-y-hidden"
+          value={title} 
           onChange={(e) => setTitle(e.target.value)}
         />
       </div>
-      <div className="w-screen flex flex-row text-gray-600">
+      <div className="w-full flex flex-row text-gray-600">
         <pre style={{fontFamily: "sans-serif"}}>
           Written by Jahnavi Murali  |  {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
         </pre>
@@ -142,10 +142,11 @@ const TextEditor = () => {
       <CustomToolbar />
       <ReactQuill
         theme="snow"
+        placeholder='Article content here!'
         value={highlightedContent}
         onChange={handleChange}
         modules={modules}
-        className="mt-4 h-full text-black text-1xl"
+        className="mt-4 h-full text-black"
       />
       <button
         onClick={processAndValidateArticle}

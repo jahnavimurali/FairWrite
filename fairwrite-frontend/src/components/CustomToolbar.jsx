@@ -1,7 +1,7 @@
 import React from 'react';
 
 const CustomToolbar = () => (
-  <div id="toolbar" className="fixed w-full top-0 left-45 right-45 bg-white p-2 z-50 flex">
+  <div id="toolbar" className="fixed w-full top-0 left-0 bg-white p-2 z-50 flex mb-2">
     <div className="flex flex-wrap items-center justify-center gap-2 m-4">
       <select className="ql-font" />
       <select className="ql-size">
