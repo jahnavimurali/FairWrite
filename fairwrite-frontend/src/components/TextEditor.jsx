@@ -19,12 +19,9 @@ const TextEditor = () => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
 
-  // const [showModal, setShowModal] = useState(false)
   const [modalData, setModalData] = useState(null);
 
-  const [sentences, setSentences] = useState([])
-  const [sentencesWithHighlightSpans, setSentencesWithHighlightSpans] = useState([])
-
+  const base_url = 'https://f382-34-125-99-180.ngrok-free.app'
 
   const handleContentChange = (value) => {
     setContent(value);
@@ -36,64 +33,117 @@ const TextEditor = () => {
     // editor.getContents().ops[0]['insert']: Get only text content
  }
 
-  const processAndValidateArticle = () => {
-    // Get raw HTML from ReactQuill
-    let htmlContent = content; 
+ const processAndValidateArticle = async () => {
+  // Get raw HTML from ReactQuill
+  let htmlContent = content;
 
-    // Use DOMParser to safely parse the HTML and extract text
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlContent, "text/html");
+  // Use DOMParser to safely parse the HTML and extract text
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlContent, "text/html");
 
-    // Extract all text nodes while keeping their HTML parent elements
-    let textNodes = [];
-    let walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null, false);
+  // Extract all text nodes while keeping their HTML parent elements
+  let textNodes = [];
+  let walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null, false);
 
-    while (walker.nextNode()) {
-        textNodes.push(walker.currentNode);
-    }
+  while (walker.nextNode()) {
+      textNodes.push(walker.currentNode);
+  }
 
-    // Process each text node separately while preserving its surrounding HTML structure
-    textNodes.forEach(node => {
-        let text = node.nodeValue.trim();
-        if (text) {
-            // Tokenize text into sentences using NLP
-            let sentencesList = nlp(text).sentences().out('array');
+  // Collect all sentences for batch API call
+  let extractedSentences = [];
+  textNodes.forEach(node => {
+      let text = node.nodeValue.trim();
+      if (text) {
+          let sentencesList = nlp(text).sentences().out('array');
+          extractedSentences.push(...sentencesList);
+      }
+  });
 
-            // Assign random bias flags (for demo purposes)
-            const biasedSentences = sentencesList.map(() => Math.random() > 0.7 ? 1 : 0);
+  if (extractedSentences.length === 0) {
+      console.warn("No sentences extracted for bias detection.");
+      return;
+  }
 
-            // Wrap biased sentences in <span> for highlighting
-            let processedText = sentencesList.map((sentence, index) => {
-                return biasedSentences[index] === 1
-                    ? `<span style="background-color: lightpink;">${sentence}</span>`
-                    : sentence;
-            }).join(' ');
+  // Call the bias detection API for all sentences
+  let biasedSentences = [];
+  try {
+      const det_url = `${base_url}/api/detection`;
+      const response = await fetch(det_url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sentences: extractedSentences })
+      });
 
-            // Replace text in the DOM without affecting surrounding HTML structure
-            node.nodeValue = ""; // Clear original text
-            let tempDiv = document.createElement("div");
-            tempDiv.innerHTML = processedText;
-            while (tempDiv.firstChild) {
-                node.parentNode.insertBefore(tempDiv.firstChild, node);
-            }
-        }
-    });
+      if (!response.ok) {
+          throw new Error(`API request failed with status: ${response.status}`);
+      }
 
-    // Convert back to HTML string
-    let updatedHTML = doc.body.innerHTML;
+      const responseData = await response.json();
+      biasedSentences = responseData.predictions;
+  } catch (e) {
+      console.error("Error during bias detection API call:", e);
+      return;
+  }
 
-    // Update ReactQuill content without losing formatting
-    setContent(updatedHTML);
+  // Process each text node separately, preserving HTML structure
+  let sentenceIndex = 0;
+  await Promise.all(textNodes.map(async node => {
+      let text = node.nodeValue.trim();
+      if (text) {
+          let sentencesList = nlp(text).sentences().out('array');
+
+          let processedText = sentencesList.map((sentence, index) => {
+              if (biasedSentences[sentenceIndex] === 1) {
+                  return `<span class="highlighted" data-index="${sentenceIndex}" style="background-color: lightpink;">${sentence}</span>`;
+              }
+              return sentence;
+          }).join(' ');
+
+          sentenceIndex += sentencesList.length;
+
+          // Replace text in the DOM without affecting surrounding HTML structure
+          let tempDiv = document.createElement("div");
+          tempDiv.innerHTML = processedText;
+          node.nodeValue = ""; // Clear original text
+          while (tempDiv.firstChild) {
+              node.parentNode.insertBefore(tempDiv.firstChild, node);
+          }
+      }
+  }));
+
+  // Convert back to HTML string and update ReactQuill
+  let updatedHTML = doc.body.innerHTML;
+  setContent(updatedHTML);
 };
 
 
-  const handleRightClick = (event) => {
+  const handleRightClick = async (event) => {
     event.preventDefault();
     const target = event.target;
     if (target.style['0']=='background-color') {
     const sentence = target.innerHTML
-    // for now set both biased_sentence and debiased_sentence to be the original sentence
-    setModalData({biased_sentence: sentence, debiased_sentence: sentence});
+    let debiased_sentence = ''
+    try{
+      const mit_url = `${base_url}/api/mitigation`
+      const response = await fetch(mit_url, {
+        method: "POST",
+        headers:{
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({sentence: sentence})
+      })
+
+      if(!response.ok){
+        throw new Error(`API request failed with status: ${response.status}`)
+      }
+
+      const responseData = await response.json()
+      debiased_sentence = responseData.debiased_sentence
+      
+    }catch(e){
+      console.log(e)
+    }
+    setModalData({biased_sentence: sentence, debiased_sentence: debiased_sentence});
     }
   };
 
