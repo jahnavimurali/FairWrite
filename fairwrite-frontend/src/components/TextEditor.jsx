@@ -21,7 +21,7 @@ const TextEditor = () => {
 
   const [modalData, setModalData] = useState(null);
 
-  const base_url = 'https://f382-34-125-99-180.ngrok-free.app'
+  const base_url = 'https://d8b0-34-143-177-58.ngrok-free.app'
 
   const handleContentChange = (value) => {
     setContent(value);
