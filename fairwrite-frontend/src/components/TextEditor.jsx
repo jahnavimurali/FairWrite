@@ -4,13 +4,14 @@ import ReactQuill from "react-quill";
 import biased from "../assets/biased.png"
 import unbiased from "../assets/unbiased.png"
 import "react-quill/dist/quill.snow.css";
+import nlp from "compromise"
 
 const modules = {
   toolbar: {
     container: "#toolbar",
   },
   clipboard: {
-    matchVisual: false, // If it doesn't make a different remove it
+    matchVisual: false, 
   },
 };
 
@@ -18,97 +19,117 @@ const TextEditor = () => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
 
-  const [highlightedContent, setHighlightedContent] = useState("");
-
   // const [showModal, setShowModal] = useState(false)
   const [modalData, setModalData] = useState(null);
 
   const [sentences, setSentences] = useState([])
   const [sentencesWithHighlightSpans, setSentencesWithHighlightSpans] = useState([])
 
+
   const handleContentChange = (value) => {
     setContent(value);
-    setHighlightedContent(value);
   };
 
   // onChange expects a function with these 4 arguments - get JSON
   function handleChange(content, delta, source, editor) {
-    // console.log(content);
     setContent(content);
-    setHighlightedContent(editor.getContents());
-
+    // editor.getContents().ops[0]['insert']: Get only text content
  }
 
   const processAndValidateArticle = () => {
-    // console.log(content)
-    // console.log(content.ops[0]['insert'])
-    const sentencesList = content.split(/(?<=\.)/).filter(sentence => sentence.trim().length > 0);
-    setSentences(sentencesList)
-    // console.log(sentencesList)
-    const biasedSentences = sentencesList.map(() => Math.random() > 0.7 ? 1 : 0);
-    // console.log(biasedSentences)
+    // Get raw HTML from ReactQuill
+    let htmlContent = content; 
 
-    let highlighted = sentencesList.map((sentence, index) => {
-      if (biasedSentences[index] === 1) {
-        return `<span class='highlighted' data-index='${index}' style='background-color: lightpink;'>${sentence}</span>`;
-      }
-      return sentence;
-    })
-    // console.log(highlighted)
-    highlighted = highlighted.join(' ');
-    // console.log(highlighted)
+    // Use DOMParser to safely parse the HTML and extract text
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, "text/html");
 
-    setHighlightedContent(highlighted);
-  };
+    // Extract all text nodes while keeping their HTML parent elements
+    let textNodes = [];
+    let walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null, false);
+
+    while (walker.nextNode()) {
+        textNodes.push(walker.currentNode);
+    }
+
+    // Process each text node separately while preserving its surrounding HTML structure
+    textNodes.forEach(node => {
+        let text = node.nodeValue.trim();
+        if (text) {
+            // Tokenize text into sentences using NLP
+            let sentencesList = nlp(text).sentences().out('array');
+
+            // Assign random bias flags (for demo purposes)
+            const biasedSentences = sentencesList.map(() => Math.random() > 0.7 ? 1 : 0);
+
+            // Wrap biased sentences in <span> for highlighting
+            let processedText = sentencesList.map((sentence, index) => {
+                return biasedSentences[index] === 1
+                    ? `<span style="background-color: lightpink;">${sentence}</span>`
+                    : sentence;
+            }).join(' ');
+
+            // Replace text in the DOM without affecting surrounding HTML structure
+            node.nodeValue = ""; // Clear original text
+            let tempDiv = document.createElement("div");
+            tempDiv.innerHTML = processedText;
+            while (tempDiv.firstChild) {
+                node.parentNode.insertBefore(tempDiv.firstChild, node);
+            }
+        }
+    });
+
+    // Convert back to HTML string
+    let updatedHTML = doc.body.innerHTML;
+
+    // Update ReactQuill content without losing formatting
+    setContent(updatedHTML);
+};
+
 
   const handleRightClick = (event) => {
     event.preventDefault();
-    //console.log("Okay smth")
     const target = event.target;
-    //console.log("Okay good")
-    //console.log(target)
     if (target.style['0']=='background-color') {
-    //   console.log("Yes I'm here")
-    //   const sentenceIndex = parseInt(target.getAttribute('data-index'), 10);
-    //   const sentencesList = content.split(/(?<=\.)/);
-    //   const sentence = sentencesList[sentenceIndex];
-      const sentence = target.innerHTML
+    const sentence = target.innerHTML
     // for now set both biased_sentence and debiased_sentence to be the original sentence
-      setModalData({biased_sentence: sentence, debiased_sentence: sentence});
+    setModalData({biased_sentence: sentence, debiased_sentence: sentence});
     }
-    // console.log("UHM")
   };
 
   const acceptSuggestion = () => {
-    const sentencesList = content.split(/(?<=\.)/);
-    const { index } = modalData;
-    sentencesList[index] = modalData.sentence; // Replace with the debiased version (same as original for now)
-    setContent(sentencesList.join(''));
-    setModalData(null);
-    processAndValidateArticle();
+    if(!modalData) return;
 
-    // let sentencesList = sentences
-    // console.log("1", sentencesList)
-    // const index = sentencesList.indexOf(modalData.biased_sentencesentence);
+    let parser =  new DOMParser();
+    let doc = parser.parseFromString(content, "text/html")
 
-    // sentencesList[index] = modalData.debiased_sentence; // Replace with the debiased version (same as original for now)
-    
-    // setSentences(sentencesList) 
-    // setContent(sentencesList.join(''));
+    let spans = doc.querySelectorAll("span")
+    spans.forEach(span => {
+      if(span.textContent === modalData.biased_sentence){
+        span.outerHTML = modalData.debiased_sentence;
+      }
+    })
 
-    // let sen_high = sentencesWithHighlightSpans
-    // sen_high[index] = modalData.debiased_sentence;
-    // setHighlightedContent(sen_high.join(''))
-    // setModalData(null);
-    // processAndValidateArticle();
+    setContent(doc.body.innerHTML)
+    setModalData(null)
   };
 
   const rejectSuggestion = () => {
-    // const index = sentences.indexOf(modalData.biased_sentence);
-    // let sen_high = sentencesWithHighlightSpans
-    // sen_high[index] = modalData.biased_sentence;
-    // setHighlightedContent(sen_high.join(''))
-    setModalData(null);
+      if (!modalData) return;
+  
+      let parser = new DOMParser();
+      let doc = parser.parseFromString(content, "text/html");
+  
+      let spans = doc.querySelectorAll("span");
+      spans.forEach(span => {
+          if (span.textContent === modalData.biased_sentence) {
+              span.outerHTML = span.textContent; // Remove <span> but keep original text
+          }
+      });
+  
+      setContent(doc.body.innerHTML);
+      setModalData(null);
+  
   };
 
   const closeModal = () => {
@@ -143,8 +164,8 @@ const TextEditor = () => {
       <ReactQuill
         theme="snow"
         placeholder='Article content here!'
-        value={highlightedContent}
-        onChange={handleChange}
+        value={content}
+        onChange={handleContentChange}
         modules={modules}
         className="mt-4 h-full text-black"
       />
