@@ -21,7 +21,8 @@ const TextEditor = () => {
 
   const [modalData, setModalData] = useState(null);
 
-  const base_url = 'https://d8b0-34-143-177-58.ngrok-free.app'
+  // change as you run flask app 
+  const base_url = 'https://8b4f-35-230-5-6.ngrok-free.app'
 
   const handleContentChange = (value) => {
     setContent(value);
